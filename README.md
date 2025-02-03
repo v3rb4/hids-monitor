@@ -119,5 +119,4 @@ Modify `hids.rb` and `log_monitor.rb` to change:
 ## 📜 License
 This project is released under the **Creative Commons Zero (CC0) License** – completely free to use and modify.
 
-🚀 **Contributions are welcome!** Submit pull requests or feature requests to improve the project. 😎
 
