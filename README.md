@@ -1,15 +1,16 @@
-# 🛡️ HIDS Monitor for Raspberry Pi & OpenWrt
+🛡️ **HIDS Monitor for Raspberry Pi & OpenWrt**
 
-🚀 A lightweight Host-Based Intrusion Detection System (HIDS) built with Ruby + Sinatra for Raspberry Pi and OpenWrt. Monitors system logs for suspicious activity and alerts administrators in real time.
+A lightweight Host-Based Intrusion Detection System (HIDS) built with Ruby + Sinatra for Raspberry Pi and OpenWrt. Monitors system logs for suspicious activity and sends real-time alerts via Telegram.
 
 ---
 
 ## 📋 Features
-✅ Monitors `/var/log/auth.log` for SSH brute-force attacks  
-✅ Logs activity and generates alerts via HTTP API  
-✅ Works on Raspberry and OpenWrt (future support)  
-✅ Can be extended with Telegram notifications  
-✅ Planned: Visualizing attack data (graphs, dashboards)  
+✅ Real-time Telegram notifications for SSH brute-force attacks  
+✅ Time window-based attack detection algorithm  
+✅ Monitors `/var/log/auth.log` for suspicious activity  
+✅ RESTful API for logging and alerts  
+✅ Works on Raspberry Pi and OpenWrt (future support)  
+✅ **Planned:** Attack visualization dashboard  
 
 ---
 
@@ -19,9 +20,8 @@
 ```bash
 sudo apt update && sudo apt install ruby-full
 ```
-Install required gems:
 ```bash
-gem install bundler sinatra
+gem install bundler sinatra telegram-bot-ruby
 ```
 
 ### 2️⃣ Clone the repository
@@ -30,93 +30,99 @@ git clone https://github.com/v3rb4/hids-monitor.git
 cd hids-monitor
 ```
 
-### 3️⃣ Start the HIDS Server
-```bash
-ruby hids.rb
-```
-➡ Open in browser: [http://localhost:4567](http://localhost:4567)
+### 3️⃣ Configure Telegram Notifications
 
-### 4️⃣ Start the Log Monitoring Script
+#### Create a Telegram bot:
+1. Message `@BotFather` on Telegram
+2. Use `/newbot` command
+3. Save the provided token
+
+#### Get your Chat ID:
+1. Send a message to your bot
+2. Visit: `https://api.telegram.org/bot<YourBOTToken>/getUpdates`
+3. Find your `chat_id` in the response
+
+#### Update configuration:
+Edit `server.rb`:
+```ruby
+TELEGRAM_BOT_TOKEN = 'YOUR_BOT_TOKEN'
+TELEGRAM_CHAT_ID = 'YOUR_CHAT_ID'
+```
+
+### 4️⃣ Start the HIDS Server
+```bash
+ruby server.rb
+```
+➡ Open in browser: `http://localhost:4567`
+
+### 5️⃣ Start the Log Monitor
 ```bash
 ruby log_monitor.rb
 ```
 
 ---
 
-## 📂 Example Logs
-```plaintext
-🚨 ALERT: Unauthorized SSH login attempt detected!
+## 📂 Example Alert
+```
+🚨 HIDS Alert!
+Brute-force attack detected!
 IP: 192.168.1.100
-User: root
-Time: 2024-02-02 12:45:00
-Log: "Failed password for root from 192.168.1.100 port 54321 ssh2"
+Attempts: 5 in last 5 minutes
 ```
 
 ---
 
+## 🔧 Configuration Options
+| Setting             | Default               | Description                         |
+|--------------------|----------------------|-------------------------------------|
+| `ALERT_THRESHOLD`  | `5`                   | Failed attempts before alert       |
+| `TIME_WINDOW`      | `300`                 | Time window in seconds             |
+| `LOG_FILE`         | `/var/log/auth.log`   | Log file path                      |
+| `TELEGRAM_BOT_TOKEN` | `nil`              | Telegram bot token                 |
+| `TELEGRAM_CHAT_ID` | `nil`                 | Telegram chat ID                    |
+
+---
+
 ## ❗ Troubleshooting
-### 🔹 SSH brute-force attempts are not logged
-If running `sudo tail -f /var/log/auth.log` does not show SSH login attempts:
-1. **Check if `rsyslog` is installed and running:**
-   ```bash
-   sudo systemctl status rsyslog
-   ```
-   If inactive, enable and start it:
-   ```bash
-   sudo apt install rsyslog -y
-   sudo systemctl enable --now rsyslog
-   ```
 
-2. **Ensure SSH logs are written to `/var/log/auth.log`**
-   ```bash
-   sudo grep "auth" /etc/rsyslog.conf
-   ```
-   If the following line is commented out, uncomment it:
-   ```
-   auth,authpriv.*    /var/log/auth.log
-   ```
-   Restart rsyslog:
-   ```bash
-   sudo systemctl restart rsyslog
-   ```
+### 🔹 SSH Logs Not Detected
 
-3. **If logs are stored in `journalctl`, check logs there:**
-   ```bash
-   sudo journalctl -u ssh --no-pager | tail -n 20
-   ```
+#### Check rsyslog:
+```bash
+sudo systemctl status rsyslog
+```
 
-4. **Test logging manually:**
-   ```bash
-   echo "Feb 03 14:22:10 raspberrypi sshd[3245]: Failed password for root from 192.168.1.50 port 54567 ssh2" | sudo tee -a /var/log/auth.log
-   ```
-   If `log_monitor.rb` does not detect this, check its execution.
+#### Verify SSH logging:
+```bash
+sudo grep "auth" /etc/rsyslog.conf
+```
+
+#### Test log monitoring:
+```bash
+echo "Feb 03 14:22:10 raspberrypi sshd[3245]: Failed password for root from 192.168.1.50 port 54567 ssh2" | sudo tee -a /var/log/auth.log
+```
+
+### 🔹 Telegram Notifications Not Working
+
+#### Verify bot token and chat ID
+#### Test bot manually:
+```bash
+curl -X POST "https://api.telegram.org/bot<YourBOTToken>/sendMessage" -d "chat_id=<YourChatID>&text=Test"
+```
 
 ---
 
-## 📌 TODO / Future Enhancements
-✅ Expand log analysis (not just `/var/log/auth.log`)  
-✅ Telegram & Slack notifications  
-✅ Web dashboard with attack statistics (graphs, tables)  
-✅ Integration with AbuseIPDB for threat intelligence  
-✅ Support for OpenWrt (lightweight deployment)  
-✅ False positive detection system  
-✅ Database for logging attacks  
-✅ Whitelist trusted IPs to reduce noise  
-
----
-
-## 🔧 Configurations
-Modify `hids.rb` and `log_monitor.rb` to change:
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `ALERT_THRESHOLD` | 5 | Number of failed attempts before triggering alert |
-| `LOG_FILE` | `/var/log/auth.log` | Path to the monitored log file |
-| `TELEGRAM_BOT_TOKEN` | `nil` | Token for Telegram bot (if enabled) |
-| `TELEGRAM_CHAT_ID` | `nil` | Chat ID for receiving alerts |
+## 📌 Roadmap
+✅ Advanced attack detection algorithms  
+✅ Web dashboard with attack statistics  
+✅ AbuseIPDB integration  
+✅ OpenWrt compatibility  
+✅ False positive reduction  
+✅ Attack database  
+✅ IP whitelist system  
 
 ---
 
 ## 📜 License
-This project is released under the **Creative Commons Zero (CC0) License** – completely free to use and modify.
-
+Released under the **Creative Commons Zero (CC0) License** – free to use and modify.
 
